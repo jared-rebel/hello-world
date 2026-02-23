@@ -36,7 +36,7 @@
             gap: 0.75rem;
             justify-content: center;
             max-width: 600px;
-            margin: 0 auto;
+            margin: 0 auto 1.5rem;
         }
         button {
             background: #1e293b;
@@ -53,55 +53,168 @@
             border-color: #475569;
             transform: translateY(-1px);
         }
-        button.active {
+        button[aria-pressed="true"] {
             background: #3b82f6;
             border-color: #3b82f6;
             color: #fff;
+        }
+        .cycle-btn {
+            background: transparent;
+            color: #64748b;
+            border: 1px solid #334155;
+            padding: 0.4rem 1.1rem;
+            font-size: 0.875rem;
+        }
+        .cycle-btn:hover {
+            color: #94a3b8;
+            border-color: #475569;
+            transform: none;
+        }
+        .cycle-btn.playing {
+            color: #3b82f6;
+            border-color: #3b82f6;
+        }
+        .hint {
+            margin-top: 1rem;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+        noscript p {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            margin-top: 1rem;
+            line-height: 2;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 id="greeting">Hello!</h1>
-        <p class="subtitle" id="language">English</p>
+        <div aria-live="polite" aria-atomic="true">
+            <h1 id="greeting"></h1>
+            <p class="subtitle" id="language"></p>
+        </div>
         <div class="languages" id="buttons"></div>
+        <button class="cycle-btn" id="cycleBtn" aria-label="Start auto-cycling through languages">▶ Auto-cycle</button>
+        <p class="hint">or use ← → arrow keys</p>
+        <noscript>
+            <p>Hello! · 你好！ · नमस्ते! · ¡Hola! · Bonjour !<br>مرحبا! · হ্যালো! · Olá! · Привет! · こんにちは！</p>
+        </noscript>
     </div>
+
     <script>
+        const FADE_MS = 150;
+        const CYCLE_MS = 2000;
+
         const greetings = [
-            { lang: 'English',    hello: 'Hello!',     flag: '🇬🇧' },
-            { lang: 'Mandarin',   hello: '你好！',      flag: '🇨🇳' },
-            { lang: 'Hindi',      hello: 'नमस्ते!',     flag: '🇮🇳' },
-            { lang: 'Spanish',    hello: '¡Hola!',     flag: '🇪🇸' },
-            { lang: 'French',     hello: 'Bonjour !',  flag: '🇫🇷' },
-            { lang: 'Arabic',     hello: 'مرحبا!',      flag: '🇸🇦' },
-            { lang: 'Bengali',    hello: 'হ্যালো!',      flag: '🇧🇩' },
-            { lang: 'Portuguese', hello: 'Olá!',       flag: '🇧🇷' },
-            { lang: 'Russian',    hello: 'Привет!',    flag: '🇷🇺' },
-            { lang: 'Japanese',   hello: 'こんにちは！',  flag: '🇯🇵' },
+            { lang: 'English',    hello: 'Hello!',      flag: '🇬🇧', code: 'en', dir: 'ltr' },
+            { lang: 'Mandarin',   hello: '你好！',        flag: '🇨🇳', code: 'zh', dir: 'ltr' },
+            { lang: 'Hindi',      hello: 'नमस्ते!',       flag: '🇮🇳', code: 'hi', dir: 'ltr' },
+            { lang: 'Spanish',    hello: '¡Hola!',       flag: '🇪🇸', code: 'es', dir: 'ltr' },
+            { lang: 'French',     hello: 'Bonjour !',    flag: '🇫🇷', code: 'fr', dir: 'ltr' },
+            { lang: 'Arabic',     hello: 'مرحبا!',        flag: '🇸🇦', code: 'ar', dir: 'rtl' },
+            { lang: 'Bengali',    hello: 'হ্যালো!',        flag: '🇧🇩', code: 'bn', dir: 'ltr' },
+            { lang: 'Portuguese', hello: 'Olá!',         flag: '🇧🇷', code: 'pt', dir: 'ltr' },
+            { lang: 'Russian',    hello: 'Привет!',      flag: '🇷🇺', code: 'ru', dir: 'ltr' },
+            { lang: 'Japanese',   hello: 'こんにちは！',   flag: '🇯🇵', code: 'ja', dir: 'ltr' },
         ];
 
         const h1 = document.getElementById('greeting');
         const sub = document.getElementById('language');
         const container = document.getElementById('buttons');
-        let activeBtn = null;
+        const cycleBtn = document.getElementById('cycleBtn');
 
+        let activeIndex = 0;
+        let cycleTimer = null;
+        const buttons = [];
+
+        function applyGreeting(g) {
+            h1.textContent = g.hello;
+            h1.lang = g.code;
+            h1.dir = g.dir;
+            sub.textContent = g.lang;
+        }
+
+        function showGreeting(index, { animate = true, pushState = true } = {}) {
+            const g = greetings[index];
+
+            if (animate) {
+                h1.style.opacity = 0;
+                setTimeout(() => {
+                    applyGreeting(g);
+                    h1.style.opacity = 1;
+                }, FADE_MS);
+            } else {
+                applyGreeting(g);
+            }
+
+            buttons.forEach((btn, i) => {
+                const active = i === index;
+                btn.setAttribute('aria-pressed', String(active));
+            });
+
+            activeIndex = index;
+
+            if (pushState) {
+                const params = new URLSearchParams(location.search);
+                params.set('lang', g.lang.toLowerCase());
+                history.replaceState(null, '', '?' + params.toString());
+            }
+        }
+
+        // Build language buttons
         greetings.forEach((g, i) => {
             const btn = document.createElement('button');
             btn.textContent = `${g.flag} ${g.lang}`;
+            btn.setAttribute('lang', g.code);
+            btn.setAttribute('aria-pressed', 'false');
             btn.addEventListener('click', () => {
-                h1.style.opacity = 0;
-                setTimeout(() => {
-                    h1.textContent = g.hello;
-                    sub.textContent = g.lang;
-                    h1.style.opacity = 1;
-                }, 150);
-                if (activeBtn) activeBtn.classList.remove('active');
-                btn.classList.add('active');
-                activeBtn = btn;
+                stopCycle();
+                showGreeting(i);
             });
-            if (i === 0) { btn.classList.add('active'); activeBtn = btn; }
             container.appendChild(btn);
+            buttons.push(btn);
         });
+
+        // Auto-cycle
+        function startCycle() {
+            cycleTimer = setInterval(() => {
+                showGreeting((activeIndex + 1) % greetings.length);
+            }, CYCLE_MS);
+            cycleBtn.textContent = '⏸ Auto-cycle';
+            cycleBtn.classList.add('playing');
+            cycleBtn.setAttribute('aria-label', 'Stop auto-cycling through languages');
+        }
+
+        function stopCycle() {
+            clearInterval(cycleTimer);
+            cycleTimer = null;
+            cycleBtn.textContent = '▶ Auto-cycle';
+            cycleBtn.classList.remove('playing');
+            cycleBtn.setAttribute('aria-label', 'Start auto-cycling through languages');
+        }
+
+        cycleBtn.addEventListener('click', () => {
+            if (cycleTimer) stopCycle(); else startCycle();
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                stopCycle();
+                showGreeting((activeIndex + 1) % greetings.length);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                stopCycle();
+                showGreeting((activeIndex - 1 + greetings.length) % greetings.length);
+            }
+        });
+
+        // Restore from URL, fall back to first entry
+        const params = new URLSearchParams(location.search);
+        const langParam = params.get('lang');
+        const initial = langParam
+            ? greetings.findIndex(g => g.lang.toLowerCase() === langParam)
+            : -1;
+        showGreeting(initial >= 0 ? initial : 0, { animate: false, pushState: false });
     </script>
 </body>
 </html>
