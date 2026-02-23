@@ -43,7 +43,7 @@ const greetings = [
 - `code` — BCP 47 language code, applied as `lang` attribute on the `<h1>` and button
 - `dir` — text direction (`'ltr'` or `'rtl'`), applied as `dir` attribute on the `<h1>`
 
-Languages (in order): English, Mandarin, Hindi, Spanish, French, Arabic, Bengali, Portuguese, Russian, Japanese.
+Languages (in order): English, Mandarin, Hindi, Spanish, French, Arabic, Bengali, Portuguese, Russian, Japanese, German, Korean, Italian, Turkish, Vietnamese, Swahili, Urdu, Thai, Polish, Indonesian.
 
 ## Development Workflow
 
